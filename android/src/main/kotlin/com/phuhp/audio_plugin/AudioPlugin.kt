@@ -61,7 +61,7 @@ class AudioPlugin: FlutterPlugin, MethodCallHandler, RequestPermissionsResultLis
   private var mediaRecorder: MediaRecorder? = null
   private var dir: File? = null
   private var recordingTime: Long = 0
-  private var timer = Timer()
+  private var timer: Timer = Timer()
 
   override fun onAttachedToActivity(binding: ActivityPluginBinding) {
     this.activity = binding.activity
@@ -180,7 +180,7 @@ class AudioPlugin: FlutterPlugin, MethodCallHandler, RequestPermissionsResultLis
       e.printStackTrace()
     }
 
-    output = dir?.absolutePath + "/${this.fileName}"
+    output = dir?.absolutePath + "/$fileName"
 
     mediaRecorder = MediaRecorder()
 
@@ -192,24 +192,21 @@ class AudioPlugin: FlutterPlugin, MethodCallHandler, RequestPermissionsResultLis
   }
 
   private fun handleCurrent(call: MethodCall, result: Result) {
-    if mediaRecorder != null {
-
+    if (mediaRecorder != null) {
       // iOS factor : to match iOS power level
       val iOSFactor = 0.25
-      mAveragePower = 20 * Math.log(Math.abs(mediaRecorder?.getMaxAmplitude()) / 32768.0) * iOSFactor
+      mAveragePower = 20 * Math.log(Math.abs(mediaRecorder!!.maxAmplitude) / 32768.0) * iOSFactor
 
-      Log.d(LOG_NAME, "getMaxAmplitude: " + mediaRecorder?.getMaxAmplitude() + " average: "+ mAveragePower);
+      Log.d(LOG_NAME, "getMaxAmplitude: " + mediaRecorder?.maxAmplitude + " average: "+ mAveragePower);
 
-      val currentResult: HashMap<String, Object> = HashMap()
-      currentResult.put("duration", getDuration() * 1000)
-      currentResult.put("path", if (mStatus === "stopped") mFilePath else getTempFilename())
+      val currentResult: HashMap<String, Any> = HashMap()
+      currentResult.put("duration", recordingTime)
+      currentResult.put("path", output)
       currentResult.put("peakPower", mAveragePower)
       currentResult.put("averagePower", mAveragePower)
       currentResult.put("isMeteringEnabled", true)
       currentResult.put("isRecording", isRecording)
-      // Log.d(LOG_NAME, currentResult.toString());
       result.success(currentResult)
-
     }else {
       result.success(null)
     }
@@ -221,18 +218,15 @@ class AudioPlugin: FlutterPlugin, MethodCallHandler, RequestPermissionsResultLis
     mDataSize = 0
   }
 
-  private fun getDuration(): Int {
-    val duration = mDataSize / (mSampleRate * 2 * 1)
-    return duration.toInt()
-  }
-
   private fun handleStart(call: MethodCall, result: Result) {
     isRecording = true
     mediaRecorder?.start()
     startTimer()
+    handleCurrent(call, result)
   }
 
   private fun startTimer(){
+    timer = Timer()
     timer.scheduleAtFixedRate(object : TimerTask() {
       override fun run() {
         recordingTime += 1
@@ -260,15 +254,11 @@ class AudioPlugin: FlutterPlugin, MethodCallHandler, RequestPermissionsResultLis
 
   private fun handleStop(call: MethodCall, result: Result) {
     this.isRecording = false
+    handleCurrent(call, result)
     mediaRecorder?.stop()
     mediaRecorder?.release()
     stopTimer()
     resetTimer()
-
-    val initResult = HashMap<String, Any>()
-    initResult["duration"] = recordingTime
-    initResult["path"] = output
-    result.success(initResult)
 
     mediaRecorder = null
   }

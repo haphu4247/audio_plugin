@@ -51,7 +51,7 @@ class AudioPlugin {
       Map<String, Object> response = Map.from(result);
       Recording recording = new Recording();
       recording.path = response["path"];
-      recording.duration = new Duration(milliseconds: response['duration']);
+      recording.duration = new Duration(seconds: response['duration']);
       recording.metering = new AudioMetering(
           peakPower: response['peakPower'],
           averagePower: response['averagePower'],

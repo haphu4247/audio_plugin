@@ -96,7 +96,7 @@ public class SwiftAudioPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate{
         let channel = dic?["channel"] as? Int ?? 0
 
         audioRecorder.updateMeters()
-        let duration = Int(audioRecorder.currentTime * 1000)
+        let duration = Int(audioRecorder.currentTime)
         var recordingResult = [String : Any]()
         recordingResult["path"] = path
         recordingResult["duration"] = duration
