@@ -13,22 +13,18 @@ class AudioPlugin {
   //   return version;
   // }
 
-  static Future startRecording() async {
-    return _channel.invokeMethod('startRecording');
+  static Future<Recording> startRecording() async {
+    var result = await _channel.invokeMethod('startRecording');
+    return getRecording(result);
   }
 
   static Future<Recording> stopRecording() async {
-    Map<String, Object> response =
-    Map.from(await _channel.invokeMethod('stopRecording'));
-    print("stopRecording: duration=${response['duration']}, path=${response['path']}");
-    Recording recording = new Recording(
-        duration: new Duration(milliseconds: response['duration']),
-        path: response['path']);
-    return recording;
+    var result = await _channel.invokeMethod('stopRecording');
+    return getRecording(result);
   }
 
   static Future<bool> setFileName(String fileName) async {
-      return _channel.invokeMethod('setFileName', {"fileName": fileName});
+      return await _channel.invokeMethod('setFileName', {"fileName": fileName});
   }
 
   static Future<bool> get hasPermissions async {
@@ -40,19 +36,68 @@ class AudioPlugin {
     bool isRecording = await _channel.invokeMethod('isRecording');
     return isRecording;
   }
+
+  /// Ask for current status of recording
+  /// Returns the result of current recording status
+  /// Metering level, Duration, Status...
+  static Future<Recording> current({int channel = 0}) async {
+    var result = await _channel.invokeMethod('current', {"channel": channel});
+    return getRecording(result);
+  }
+
+  static Recording getRecording(result) {
+    print("result is $result");
+    if (result != null) {
+      Map<String, Object> response = Map.from(result);
+      Recording recording = new Recording();
+      recording.path = response["path"];
+      recording.duration = new Duration(milliseconds: response['duration']);
+      recording.metering = new AudioMetering(
+          peakPower: response['peakPower'],
+          averagePower: response['averagePower'],
+          isMeteringEnabled: response['isMeteringEnabled']);
+      recording.isRecording = response["isRecording"];
+      return recording;
+    }else{
+      return null;
+    }
+  }
 }
 
 enum AudioOutputFormat { AAC, WAV }
 
 class Recording {
   // File path
+  bool isRecording;
+
+  // File path
   String path;
+
   // File extension
   String extension;
+
   // Audio duration in milliseconds
   Duration duration;
+
+  /// Metering
+  AudioMetering metering;
+
   // Audio output format
   AudioOutputFormat audioOutputFormat;
 
   Recording({this.duration, this.path, this.audioOutputFormat, this.extension});
+}
+
+/// Audio Metering Level - describe the metering level of microphone when recording
+class AudioMetering {
+  /// Represent peak level of given short duration
+  double peakPower;
+
+  /// Represent average level of given short duration
+  double averagePower;
+
+  /// Is metering enabled in system
+  bool isMeteringEnabled;
+
+  AudioMetering({this.peakPower, this.averagePower, this.isMeteringEnabled});
 }

@@ -30,8 +30,9 @@ class _MyAppState extends State<MyApp> {
   String _platformVersion = 'Unknown';
   AudioPlayer _audioPlayer = AudioPlayer();
   Recording _recording = new Recording();
+  AudioMetering _audioMetering;
   bool _isRecording = false;
-
+  Timer _timer;
   TextEditingController _controller = new TextEditingController();
 
   @override
@@ -50,7 +51,7 @@ class _MyAppState extends State<MyApp> {
                 color: Colors.green,
               ),
               new FlatButton(
-                onPressed: _isRecording ? null : _stop,
+                onPressed: _isRecording ? _stop : null,
                 child: new Text("Stop"),
                 color: Colors.red,
               ),
@@ -66,10 +67,9 @@ class _MyAppState extends State<MyApp> {
                 ),
               ),
               new Text("File path of the record: ${_recording.path}"),
-              new Text("Format: ${_recording.audioOutputFormat}"),
-              new Text("Extension : ${_recording.extension}"),
-              new Text(
-                  "Audio recording duration : ${_recording.duration.toString()}")
+              new Text("Audio recording duration : ${_recording.duration.toString()}"),
+              new Text("Avg Power : ${_recording.metering?.averagePower}"),
+              new Text("Peak Power : ${_recording.metering?.peakPower}")
             ]),
       ),
     );
@@ -77,26 +77,50 @@ class _MyAppState extends State<MyApp> {
   int i = 0;
   String fileName = "";
   _start() async {
-    ++i;
-    if (await AudioPlugin.hasPermissions) {
-      fileName = "myfile$i.m4a";
-      print("pathToFile=$fileName");
-      var isOK = await AudioPlugin.setFileName(fileName);
-      if (isOK) {
-        await AudioPlugin.startRecording();
-        bool isRecording = await AudioPlugin.isRecording;
-        setState(() {
-          _recording = new Recording(path: fileName);
-          _isRecording = isRecording;
-        });
+    try {
+      ++i;
+      if (await AudioPlugin.hasPermissions) {
+        fileName = "myfile$i.m4a";
+
+        var isOK = await AudioPlugin.setFileName(fileName);
+
+        if (isOK) {
+          var current = await AudioPlugin.startRecording();
+          if (current==null){
+            current = await AudioPlugin.current(channel: 0);
+          }
+          
+          if (current != null) {
+            print("pathToFile=${current.path} isOK=$isOK isRecording=${current.isRecording}");
+            setState(() {
+              _recording = current;
+              _isRecording = current.isRecording;
+            });
+
+            const tick = Duration(milliseconds: 250);
+            _timer = new Timer.periodic(tick, (Timer t) async {
+              print("_isRecording=$_isRecording");
+              var current = await AudioPlugin.current(channel: 0);
+              // print(current.status);
+              setState(() {
+                _recording = current;
+                _isRecording = current.isRecording;
+              });
+            });
+          }
+
+        }
+      } else {
+        Scaffold.of(context).showSnackBar(
+            new SnackBar(content: new Text("You must accept permissions")));
       }
-    } else {
-      Scaffold.of(context).showSnackBar(
-          new SnackBar(content: new Text("You must accept permissions")));
+    }catch (e){
+      print("error=$e");
     }
   }
   String path = "";
   _stop() async {
+    _timer?.cancel();
     var recording = await AudioPlugin.stopRecording();
     path = recording.path;
     print("Stop recording: $path");

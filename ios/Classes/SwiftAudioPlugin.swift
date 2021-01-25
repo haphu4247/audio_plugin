@@ -12,6 +12,7 @@ public class SwiftAudioPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate{
     var audioRecorder: AVAudioRecorder!
     private var meterTimer:Timer!
     private var fileName:String!
+    private var path: String?
     internal var recordingSession: AVAudioSession = AVAudioSession.sharedInstance()
 
     private let settings = [
@@ -29,12 +30,17 @@ public class SwiftAudioPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate{
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
+        case "current":
+            print("current")
+            let recordingResult = getCurrent(call: call)
+            result(recordingResult)
         case "stopRecording":
-            let recordingResult = stopRecording()
+            let recordingResult = stopRecording(call: call)
             result(recordingResult)
             break
         case "startRecording":
-            startRecording()
+            let recordingResult = startRecording(call: call)
+            result(recordingResult)
             break
         case "setFileName":
             let dic = call.arguments as! [String:Any]
@@ -80,8 +86,28 @@ public class SwiftAudioPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate{
     }
   }
 
-  func stopRecording() -> [String : Any]?{
-      return self.finishRecording()
+  func stopRecording(call: FlutterMethodCall) -> [String : Any]?{
+      return self.finishRecording(call: call)
+  }
+
+  func getCurrent(call: FlutterMethodCall) -> [String : Any]?{
+    if let audioRecorder = audioRecorder {
+        let dic = call.arguments as? [String : Any]
+        let channel = dic?["channel"] as? Int ?? 0
+
+        audioRecorder.updateMeters()
+        let duration = Int(audioRecorder.currentTime * 1000)
+        var recordingResult = [String : Any]()
+        recordingResult["path"] = path
+        recordingResult["duration"] = duration
+        recordingResult["peakPower"] = audioRecorder.peakPower(forChannel: channel)
+        recordingResult["averagePower"] = audioRecorder.averagePower(forChannel: channel)
+        recordingResult["isMeteringEnabled"] = audioRecorder.isMeteringEnabled
+        recordingResult["isRecording"] = audioRecorder.isRecording
+        return recordingResult
+    }else{
+        return nil
+    }
   }
 
   func setFileName(fileName: String)->Bool{
@@ -89,25 +115,21 @@ public class SwiftAudioPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate{
       return true
   }
 
-  func startRecording() {
+  func startRecording(call: FlutterMethodCall) -> [String: Any]?{
       if(audioRecorder != nil && audioRecorder.isRecording)
       {
           self.pause()
       }
       else
       {
-          if isPaused {
-              self.resume()
-          }else{
-              if audioRecorder == nil {
-                  self.startRecorder()
-              }else{
-                  self.resume()
-              }
-              self.delegate?.onResume()
-          }
+        if audioRecorder == nil {
+            self.startRecorder()
+        }else{
+            self.resume()
+        }
       }
       print("startRecording: self.isPaused = \(isPaused)")
+      return getCurrent(call: call)
   }
 
   func isPause() -> Bool {
@@ -180,6 +202,7 @@ public class SwiftAudioPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate{
                       do
                       {
                           let url = self.getDocumentsDirectory(fileName: fileName)
+                          path = url.absoluteString
                           self.audioRecorder = try AVAudioRecorder(url: url, settings: self.settings)
                           self.audioRecorder.delegate = self
                           self.audioRecorder.isMeteringEnabled = true
@@ -187,10 +210,12 @@ public class SwiftAudioPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate{
                           self.audioRecorder.record()
                           self.meterTimer = Timer.scheduledTimer(timeInterval: 0.025, target:self, selector: #selector(self.updateAudioMeter(timer:)), userInfo:nil, repeats:true)
                       }catch let error {
+                          print("error=\(error.localizedDescription)")
                           self.displayAlert(msg_title: "Error", msg_desc: error.localizedDescription, action_title: "OK")
                       }
                   } else {
                       // failed to record!
+                      print("Don't have access to use your microphone.")
                       self.displayAlert(msg_title: "Error", msg_desc: "Don't have access to use your microphone.", action_title: "OK")
                   }
               }
@@ -201,16 +226,10 @@ public class SwiftAudioPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate{
       }
   }
 
-  private func finishRecording() -> [String : Any]?
-  {
-    var recordingResult = [String : Any]()
+  private func finishRecording(call: FlutterMethodCall) -> [String : Any]?{
+    let current = getCurrent(call: call)
     if let recorder = self.audioRecorder{
-        let duration = Int(recorder.currentTime*1000)
-        print("duration=\(duration)")
-        recordingResult["duration"] = duration
-        recordingResult["path"] = recorder.url.absoluteString
-
-        audioRecorder?.stop()
+        recorder.stop()
         audioRecorder = nil
         meterTimer?.invalidate()
 
@@ -221,7 +240,7 @@ public class SwiftAudioPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate{
         }
     }
     print("recorded successfully.")
-    return recordingResult
+    return current
   }
 
   private func displayAlert(msg_title : String , msg_desc : String ,action_title : String)

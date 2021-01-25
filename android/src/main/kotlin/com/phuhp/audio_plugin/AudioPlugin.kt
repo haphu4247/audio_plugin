@@ -124,6 +124,7 @@ class AudioPlugin: FlutterPlugin, MethodCallHandler, RequestPermissionsResultLis
     _result = result
 
     when (call.method) {
+      "current" -> handleCurrent(call, result)
       "hasPermissions" -> handleHasPermission()
       "startRecording" -> handleStart(call, result)
       "stopRecording" -> handleStop(call, result)
@@ -190,6 +191,30 @@ class AudioPlugin: FlutterPlugin, MethodCallHandler, RequestPermissionsResultLis
     mediaRecorder?.prepare()
   }
 
+  private fun handleCurrent(call: MethodCall, result: Result) {
+    if mediaRecorder != null {
+
+      // iOS factor : to match iOS power level
+      val iOSFactor = 0.25
+      mAveragePower = 20 * Math.log(Math.abs(mediaRecorder?.getMaxAmplitude()) / 32768.0) * iOSFactor
+
+      Log.d(LOG_NAME, "getMaxAmplitude: " + mediaRecorder?.getMaxAmplitude() + " average: "+ mAveragePower);
+
+      val currentResult: HashMap<String, Object> = HashMap()
+      currentResult.put("duration", getDuration() * 1000)
+      currentResult.put("path", if (mStatus === "stopped") mFilePath else getTempFilename())
+      currentResult.put("peakPower", mAveragePower)
+      currentResult.put("averagePower", mAveragePower)
+      currentResult.put("isMeteringEnabled", true)
+      currentResult.put("isRecording", isRecording)
+      // Log.d(LOG_NAME, currentResult.toString());
+      result.success(currentResult)
+
+    }else {
+      result.success(null)
+    }
+  }
+
   private fun resetRecorder() {
     mPeakPower = -120.0
     mAveragePower = -120.0
@@ -234,8 +259,6 @@ class AudioPlugin: FlutterPlugin, MethodCallHandler, RequestPermissionsResultLis
   }
 
   private fun handleStop(call: MethodCall, result: Result) {
-
-
     this.isRecording = false
     mediaRecorder?.stop()
     mediaRecorder?.release()
@@ -246,6 +269,8 @@ class AudioPlugin: FlutterPlugin, MethodCallHandler, RequestPermissionsResultLis
     initResult["duration"] = recordingTime
     initResult["path"] = output
     result.success(initResult)
+
+    mediaRecorder = null
   }
 
   @Throws(IOException::class)
