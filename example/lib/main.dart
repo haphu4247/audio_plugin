@@ -89,7 +89,7 @@ class _MyAppState extends State<MyApp> {
           if (current==null){
             current = await AudioPlugin.current(channel: 0);
           }
-          
+
           if (current != null) {
             print("pathToFile=${current.path} isOK=$isOK isRecording=${current.isRecording}");
             setState(() {
