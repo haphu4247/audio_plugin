@@ -24,7 +24,7 @@ class AudioPlugin {
   }
 
   static Future<bool> setFileName(String fileName) async {
-      return await _channel.invokeMethod('setFileName', {"fileName": fileName});
+    return await _channel.invokeMethod('setFileName', {"fileName": fileName});
   }
 
   static Future<bool> get hasPermissions async {
@@ -46,12 +46,12 @@ class AudioPlugin {
   }
 
   static Recording getRecording(result) {
-    print("result is $result");
     if (result != null) {
       Map<String, Object> response = Map.from(result);
       Recording recording = new Recording();
       recording.path = response["path"];
-      recording.duration = new Duration(seconds: response['duration']);
+      recording.duration = Duration(seconds: response['duration']);
+      recording.durationStr = convertDurationToTime(new Duration(seconds: response['duration']));
       recording.metering = new AudioMetering(
           peakPower: response['peakPower'],
           averagePower: response['averagePower'],
@@ -61,6 +61,24 @@ class AudioPlugin {
     }else{
       return null;
     }
+  }
+
+  static String convertDurationToTime(Duration time){
+    String seconds = "00";
+    String minutes = "00";
+    String hours = "00";
+    if (time != null) {
+      if (time.inHours < 10){
+        hours = "$hours";
+      }
+      if (time.inMinutes < 10){
+        minutes = "$minutes";
+      }
+      if (time.inSeconds < 10){
+        seconds = "$seconds";
+      }
+    }
+    return "$hours:$minutes:$seconds";
   }
 }
 
@@ -79,6 +97,8 @@ class Recording {
   // Audio duration in milliseconds
   Duration duration;
 
+  // Audio duration in milliseconds
+  String durationStr;
   /// Metering
   AudioMetering metering;
 
