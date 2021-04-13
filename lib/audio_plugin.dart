@@ -58,7 +58,9 @@ class AudioPlugin {
         var names = List<String>();
         for (int i = 0; i < list.length; i++){
           Map<String, Object> response = Map.from(list[i]);
-          names.add(response['name']);
+          if (response['name'] != null){
+            names.add(response['name']);
+          }
         }
         return names;
       }
