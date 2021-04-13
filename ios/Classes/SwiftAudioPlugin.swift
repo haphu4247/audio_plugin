@@ -30,6 +30,10 @@ public class SwiftAudioPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate{
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
+        case "audios":
+            print("audios")
+            let audios = getAudios(call: call)
+            result(audios)
         case "current":
             print("current")
             let recordingResult = getCurrent(call: call)
@@ -290,6 +294,21 @@ public class SwiftAudioPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate{
       {
           audioRecorder.updateMeters()
       }
+  }
+
+  func getAudios(call: FlutterMethodCall) -> [[String : Any]]?{
+      let audios = UserDefaults.init(suiteName: "group.com.mcsd.MYC")
+      let sharedAudios = audios?.value(forKey: "audios") as? [[String : Any]]
+      if sharedAudios != nil {
+          var arr: [[String : Any]] = [[:]]
+          sharedAudios?.forEach({ (metaData) in
+              let fileName = metaData["name"] as! String
+              arr.append(["name":fileName])
+          })
+          audios?.removeObject(forKey: "audios")
+          return arr
+      }
+      return nil
   }
 }
 

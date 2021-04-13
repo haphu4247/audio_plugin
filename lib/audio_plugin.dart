@@ -45,6 +45,26 @@ class AudioPlugin {
     return getRecording(result);
   }
 
+  static Future<List<String>> audios({int channel = 0}) async {
+    var result = await _channel.invokeMethod('audios', {"channel": channel});
+    return _fileName(result);
+  }
+
+  static List<String> _fileName(result){
+    if (result != null){
+      var list = List.castFrom(result);
+      print("audios: $list");
+      if (list != null){
+        var names = List<String>();
+        for (int i = 0; i < list.length; i++){
+          Map<String, Object> response = Map.from(list[i]);
+          names.add(response['name']);
+        }
+        return names;
+      }
+    }
+  }
+
   static Recording getRecording(result) {
     if (result != null) {
       Map<String, Object> response = Map.from(result);
