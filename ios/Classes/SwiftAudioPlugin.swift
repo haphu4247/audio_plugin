@@ -304,11 +304,77 @@ public class SwiftAudioPlugin: NSObject, FlutterPlugin, AVAudioRecorderDelegate{
           sharedAudios?.forEach({ (metaData) in
               let fileName = metaData["name"] as! String
               arr.append(["name":fileName])
+              moveFileToMyApp(fileName)
           })
           audios?.removeObject(forKey: "audios")
           return arr
       }
       return nil
+  }
+
+  fileprivate func moveFileToMyApp(_ fileName: String) {
+    let myAppURL = try! FileManager.default.url(for:.documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+    let fileURL = myAppURL.appendingPathComponent(fileName)
+    //            let srcURL = URL(string: url)
+
+    let realFileUrlString = appendSuffixName(fileURL: fileURL, seq: 0)
+    let realFileUrl = URL(string: realFileUrlString)
+
+    let documentsDirectory = FileManager().containerURL(forSecurityApplicationGroupIdentifier: "group.com.mcsd.MYC")
+
+    let archiveURL = documentsDirectory?.appendingPathComponent(fileName)
+    do {
+        print("getGruopFile: archiveURL =\(String(describing: archiveURL?.absoluteString)) fileURL =\(realFileUrl!.absoluteString)")
+        try FileManager.default.moveItem(at: archiveURL!, to: realFileUrl!)
+        print("copy success")
+    } catch (let error){
+        print("share Cannot copy item at \(archiveURL!) to \(realFileUrl!): \(error)")
+    }
+  }
+
+  fileprivate func appendSuffixName(fileURL: URL, seq: Int)->String {
+      if FileManager().fileExists(atPath: fileURL.path) {
+          let durl = try! FileManager.default.url(for:.documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+
+          let orgFileName = fileURL.lastPathComponent
+          let orgFileNameWithoutEXT = orgFileName.replacingOccurrences(of: ".\(fileURL.pathExtension)", with: "")
+          let tempseq = 1 + seq
+
+          let lastIndex = orgFileNameWithoutEXT.lastIndex(of: "_")
+          let endIndex = orgFileNameWithoutEXT.endIndex
+          if(lastIndex != nil){
+
+              if "_" != orgFileNameWithoutEXT.last {
+                  let substringStratIndex = orgFileNameWithoutEXT.index(lastIndex!, offsetBy: 1)
+                  let seqStr = orgFileNameWithoutEXT[substringStratIndex..<endIndex]
+                  let oldseq = Int(seqStr)
+                  if oldseq != nil {
+                      let newseq = oldseq! + 1
+                      let fileNameWithSEQ = "\(orgFileNameWithoutEXT[orgFileNameWithoutEXT.startIndex..<lastIndex!])_\(newseq).\(fileURL.pathExtension)"
+                      let resultUrl = durl.appendingPathComponent(fileNameWithSEQ)
+
+                      return appendSuffixName(fileURL: resultUrl, seq: newseq)
+                  }else {
+                      let fileNameWithSEQ = "\(orgFileNameWithoutEXT)_\(tempseq).\(fileURL.pathExtension)"
+                      let resultUrl = durl.appendingPathComponent(fileNameWithSEQ)
+
+                      return appendSuffixName(fileURL: resultUrl, seq: tempseq)
+                  }
+              }else {
+                  let fileNameWithSEQ = "\(orgFileNameWithoutEXT)_\(tempseq).\(fileURL.pathExtension)"
+                  let resultUrl = durl.appendingPathComponent(fileNameWithSEQ)
+
+                  return appendSuffixName(fileURL: resultUrl, seq: tempseq)
+              }
+          }else {
+              let fileNameWithSEQ = "\(orgFileNameWithoutEXT)_\(tempseq).\(fileURL.pathExtension)"
+              let resultUrl = durl.appendingPathComponent(fileNameWithSEQ)
+
+              return appendSuffixName(fileURL: resultUrl, seq: tempseq)
+          }
+
+      }
+      return fileURL.absoluteString
   }
 }
 
